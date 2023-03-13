@@ -6,11 +6,11 @@ bam.subset.wrapper <- function(bam.vec, out.bam.vec = NULL, out.dir, pct,
   }
   pct <- as.character(pct) %>% sub("0.", "", .)
   out.bams <- mclapply(seq_along(bam.vec), function(i) {
-    
+
     bam <- bam.vec[i]
     out.bam <- out.bam.vec[i]
     dir.create(dirname(out.bam), showWarnings = F, recursive = T)
-    cmd <- paste0(samtools, " view -h -b -o ", out.bam, " -@ ", threads.sub, 
+    cmd <- paste0(samtools, " view -h -b -o ", out.bam, " -@ ", threads.sub,
                   " -s ", seed, ".", pct, " ", bam)
     utilsFanc::cmd.exec.fanc(cmd = cmd, intern = F, run = run)
     if (!file.exists(out.bam))
@@ -32,7 +32,7 @@ bam.chunk.to.df <- function(chunk) {
 
 bam.chunk.to.df.2 <- function(chunks, rbind = T,
                               add.bits = NULL,
-                              shift = 0, shift.cols = c("pos", "mpos"), 
+                              shift = 0, shift.cols = c("pos", "mpos"),
                               add.shift = 0, add.min.mapq = F, add.m.score = F) {
   res <- lapply(chunks, function(chunk) {
     chunk <- scFanc::factor2character.fanc(chunk)
@@ -44,8 +44,8 @@ bam.chunk.to.df.2 <- function(chunks, rbind = T,
     if (!is.null(add.bits))
       chunk <- bam.df.add.flag(bam.df = chunk, flag.bits = add.bits, pos = 1)
     if (add.min.mapq == T) {
-      chunk <- chunk %>% arrange(qname) %>% group_by(qname) %>% mutate(min.mapq = min(mapq)) %>% 
-        ungroup() %>% as.data.frame() 
+      chunk <- chunk %>% arrange(qname) %>% group_by(qname) %>% mutate(min.mapq = min(mapq)) %>%
+        ungroup() %>% as.data.frame()
       chunk <- utilsFanc::df.rearrange.cols(df = chunk, cols = "min.mapq", after = "mapq")
     }
     if (shift != 0)
@@ -61,7 +61,7 @@ bam.chunk.to.df.2 <- function(chunks, rbind = T,
                                             after = "min.mapq")
     }
     return(chunk)
-  }) 
+  })
   if (rbind == T) {
     res <- res %>% Reduce(rbind,.) %>% unique()
   }
@@ -69,7 +69,7 @@ bam.chunk.to.df.2 <- function(chunks, rbind = T,
 }
 
 bam.df.add.flag <- function(bam.df, flag.bits, ...) {
-  df2 <- Rsamtools::bamFlagAsBitMatrix(flag = bam.df$flag %>% as.integer())[, flag.bits] %>% 
+  df2 <- Rsamtools::bamFlagAsBitMatrix(flag = bam.df$flag %>% as.integer())[, flag.bits] %>%
     as.data.frame() %>% `colnames<-`(flag.bits)
   bam.df <- utilsFanc::add.column.fanc(df1 = bam.df, df2 = df2, ...)
   return(bam.df)
@@ -79,7 +79,7 @@ bam.df.subset.by.region <- function(bam.df, gr, return.list = F, gr.name.col = N
                                     rescue.qname = T) {
   tmp <- bam.df
   tmp$pos.end <- tmp$pos + GenomicAlignments::cigarWidthAlongReferenceSpace(tmp$cigar)
-  tmp <- tmp %>% dplyr::select(rname, pos, pos.end, qname) 
+  tmp <- tmp %>% dplyr::select(rname, pos, pos.end, qname)
   colnames(tmp) <- c("chr", "start", "end", "qname")
   tmp <- makeGRangesFromDataFrame(tmp, keep.extra.columns = T)
   o <- findOverlaps(tmp, gr)
@@ -87,7 +87,7 @@ bam.df.subset.by.region <- function(bam.df, gr, return.list = F, gr.name.col = N
     gr$locus <- utilsFanc::gr.get.loci(gr)
     gr.name.col <- "locus"
   }
-  bam.list <- queryHits(o) %>% split(f = mcols(gr)[, gr.name.col][subjectHits(o)]) %>% 
+  bam.list <- queryHits(o) %>% split(f = mcols(gr)[, gr.name.col][subjectHits(o)]) %>%
     lapply(function(x) {
       if (rescue.qname == T) {
         qnames.in <- tmp[x]$qname
@@ -97,12 +97,12 @@ bam.df.subset.by.region <- function(bam.df, gr, return.list = F, gr.name.col = N
       }
       return(bam.df)
     })
-  
-  
+
+
   if (length(bam.list) == 1)
     bam.list <- bam.list[[1]]
   return(bam.list)
-  
+
   # if (return.list == F) {
   #   qnames.in <- tmp[queryHits(o) %>% unique()]$qname
   #   bam.df <- bam.df %>% filter(qname %in% qnames.in)
@@ -112,7 +112,7 @@ bam.df.subset.by.region <- function(bam.df, gr, return.list = F, gr.name.col = N
   # }
 }
 
-write.bam <- function(bam.df, out.bam, header.file, fields = ALL.FIELDS, tags, 
+write.bam <- function(bam.df, out.bam, header.file, fields = ALL.FIELDS, tags,
                       shift = 0,
                       append = F, sam2bam = T,
                       sort = T, index = T,
@@ -126,9 +126,9 @@ write.bam <- function(bam.df, out.bam, header.file, fields = ALL.FIELDS, tags,
     tag.formatting() %>% rnext.formatting() %>% bam.shift(shift)
   out.sam <- sub(".bam$", ".sam", out.bam)
   if (append == F) {
-    cmd <- paste0("rsync ", header.file, " ", out.sam) 
+    cmd <- paste0("rsync ", header.file, " ", out.sam)
     system(cmd)
-  } 
+  }
   write.table(bam.df, file = out.sam, append = T, quote = F, sep = "\t", row.names = F, col.names = F)
   if (sam2bam == T) {
     if (sort == T) {
@@ -145,7 +145,7 @@ write.bam <- function(bam.df, out.bam, header.file, fields = ALL.FIELDS, tags,
     stop(paste0(out.bam, " failed to generate"))
   else
     return(out.bam)
-} 
+}
 
 
 split.bam <- function(bam,  split.dir, split.size, override = F, run = T,
@@ -408,7 +408,7 @@ bam.2.fastq.wrapper <- function(bam.file.vec, out.dir, fastq.root.vec = NULL,
     utilsFanc::cmd.exec.fanc(cmd = cmd, run = run, intern = F)
     if (!file.exists(read1)) {
       stop(paste0(read1, " failed to generate"))
-    } 
+    }
     return()
   }, mc.cleanup = T, mc.cores = threads)
 }
@@ -418,7 +418,7 @@ bam.2.fastq <- function(bam.df, out.fastq.root, pe,
   stop("this function doesn't work")
   if (is.list(bam.df) && !is.data.frame(bam.df))
     bam.df <- Reduce(rbind, bam.df)
-  bam.df <- bam.df %>% select(qname, seq, qual, flag) %>% 
+  bam.df <- bam.df %>% select(qname, seq, qual, flag) %>%
     mutate(plus = "+", qname = paste0("@", qname))
   if (pe == T) {
     bam.df <- bamFanc::bam.df.add.flag(bam.df = bam.df, flag.bits = "isFirstMateRead")
@@ -438,7 +438,7 @@ bam.2.fastq <- function(bam.df, out.fastq.root, pe,
       system(paste0("gzip ", outfile))
       return(outfile)
     }, mc.cores = 2, mc.cleanup = T) %>% unlist()
-    
+
     if (any(!file.exists(out.files))) {
       stop(paste0(paste0(out.files, collapse = " or "), " failed to generate"))
     }
@@ -447,7 +447,7 @@ bam.2.fastq <- function(bam.df, out.fastq.root, pe,
 }
 
 bam.get.cut.site.ez <- function(chunk.l, is.open.bed = F,
-                                overall.shift = 0, left.shift = -4, right.shift = 5, 
+                                overall.shift = 0, left.shift = -4, right.shift = 5,
                                 gr.region.name.map = NULL, name.col = NULL) {
   # this function can also process the open.bed file generated by the target pipeline.
   switch <- F
@@ -462,7 +462,7 @@ bam.get.cut.site.ez <- function(chunk.l, is.open.bed = F,
       if (length(chunk) == 0)
         chunk$name <- character(0)
       gr <- (shift(chunk, overall.shift) - 74.5) %>% plyranges::mutate(qname = name) %>% plyranges::select(qname)
-      df <- as.data.frame(gr %>% `names<-`(NULL)) %>% rename(chr = seqnames)
+      df <- as.data.frame(gr %>% `names<-`(NULL)) %>% dplyr::rename(chr = seqnames)
     } else {
       df <- chunk %>% dplyr::select(qname, isFirstMateRead, rname, pos, mpos, cigar)
       bLeft <- (df$pos < df$mpos) | (df$isFirstMateRead == 1 & df$pos == df$mpos)
@@ -472,14 +472,14 @@ bam.get.cut.site.ez <- function(chunk.l, is.open.bed = F,
         mutate(pos.use = pos, shift = left.shift)
       df[!bLeft, ] <- df[!bLeft, ] %>%
         mutate(pos.use = pos + GenomicAlignments::cigarWidthAlongReferenceSpace(cigar), shift = right.shift)
-      
+
       df <- df %>% mutate(start = pos.use + overall.shift + shift) %>% mutate(end = start) %>%
-        dplyr::select(rname, start, end, qname) %>% rename(chr = rname)
+        dplyr::select(rname, start, end, qname) %>% dplyr::rename(chr = rname)
       gr <- df %>% makeGRangesFromDataFrame(keep.extra.columns = T)
     }
-    
 
-    
+
+
     if (!is.null(gr.region.name.map)) {
       # browser()
       region.gr <- gr.region.name.map %>% plyranges::filter(!!as.name(name.col) == region)
@@ -491,7 +491,7 @@ bam.get.cut.site.ez <- function(chunk.l, is.open.bed = F,
       df <- df[queryHits(o), ]
     }
     df.pe <- df %>% group_by(qname) %>% summarise(start.left= min(start),
-                                                  start.right = max(start), n.mates = n()) %>% 
+                                                  start.right = max(start), n.mates = n()) %>%
       ungroup() %>% as.data.frame()
     res <- list(gr = gr, df = df, df.pe = df.pe)
     return(res)
@@ -502,14 +502,14 @@ bam.get.cut.site.ez <- function(chunk.l, is.open.bed = F,
   return(chunk.l)
 }
 
-cut.site.pipe <- function(bam.files, sample.names = NULL, 
+cut.site.pipe <- function(bam.files, sample.names = NULL,
                           ctrl.bed.files = NULL,
                           region.gr, name.col,  shift = 0, padding = 5,
                           report.dir,
-                          tag, header.file, m.score.cutoff, 
+                          tag, header.file, m.score.cutoff,
                           threads.bam = 4, threads.region = 4) {
-  print("this function uses shift differently. " %>% 
-          paste0("It caters the fact that region.gr should be in genomic coordinates", 
+  print("this function uses shift differently. " %>%
+          paste0("It caters the fact that region.gr should be in genomic coordinates",
                  ", and the bam is on a mini genome"))
   utilsFanc::write.zip.fanc(df = region.gr, out.file = paste0(report.dir, "/region.bed"), bed.shift = T)
   if (is.null(sample.names))
@@ -527,7 +527,7 @@ cut.site.pipe <- function(bam.files, sample.names = NULL,
                                                         what = bamFanc::ALL.FIELDS,
                                                         which = region.gr.shift + padding))
     chunk.l <- bamFanc::bam.chunk.to.df.2(chunks = chunk.l, rbind = F,
-                                          add.bits = c("isSecondaryAlignment", "isFirstMateRead"), 
+                                          add.bits = c("isSecondaryAlignment", "isFirstMateRead"),
                                         add.min.mapq = T, add.m.score = T)
     ## rename chunk.l
     rename.vec <- mcols(region.gr.shift)[, name.col]
@@ -535,16 +535,16 @@ cut.site.pipe <- function(bam.files, sample.names = NULL,
     if (!identical(names(chunk.l), names(rename.vec)))
       stop("!identical(names(chunk.l), names(rename.vec))")
     names(chunk.l) <- rename.vec[names(chunk.l)]
-    # chunk.l <- bamFanc::bam.df.subset.by.region(bam.df = chunk, gr = shift(region.gr, -shift), 
-    #                                             return.list = T, gr.name.col = name.col, 
+    # chunk.l <- bamFanc::bam.df.subset.by.region(bam.df = chunk, gr = shift(region.gr, -shift),
+    #                                             return.list = T, gr.name.col = name.col,
     #                                             rescue.qname = F)
-    chunk.l.f <- bamFanc::nkc.composite.filter(chunk.l = chunk.l, m.score.cutoff = m.score.cutoff, 
+    chunk.l.f <- bamFanc::nkc.composite.filter(chunk.l = chunk.l, m.score.cutoff = m.score.cutoff,
                                   out.dir = paste0(report.dir, "/", sample,"/"),
-                                  threads = threads.region, header.file = header.file, 
+                                  threads = threads.region, header.file = header.file,
                                   tags = tag, shift = shift)
-    
+
     chunk.l.f <- lapply(chunk.l.f, function(x) return(x$pass))
-    cutsite.l <- bamFanc::bam.get.cut.site.ez(chunk.l = chunk.l.f, overall.shift = shift, 
+    cutsite.l <- bamFanc::bam.get.cut.site.ez(chunk.l = chunk.l.f, overall.shift = shift,
                                               left.shift = 0, right.shift = 0,
                                               gr.region.name.map = region.gr + padding,
                                               name.col = name.col)
@@ -554,21 +554,21 @@ cut.site.pipe <- function(bam.files, sample.names = NULL,
   stat <- lapply(cutsite, function(x) {
     n.cut <- sapply(x, function(y) return(length(y$gr)))
     return(n.cut)
-  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>% 
+  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>%
     mutate(., region = rownames(.)) %>% `rownames<-`(NULL)
   write.table(stat, paste0(report.dir, "/stat.tsv"), quote = F,sep = "\t", row.names = F, col.names = T)
-  
+
   if (!is.null(ctrl.bed.files)) {
     names(ctrl.bed.files) <- sample.names
     cutsite.ctrl <- mclapply(sample.names, function(sample) {
       bed <- ctrl.bed.files[sample]
-      bed.l <- (region.gr + padding) %>% 
-        split(., f = factor(mcols(.)[, name.col], levels = unique(mcols(.)[, name.col]))) %>% 
+      bed.l <- (region.gr + padding) %>%
+        split(., f = factor(mcols(.)[, name.col], levels = unique(mcols(.)[, name.col]))) %>%
         mclapply(function(gr) {
           bed.gr <- rtracklayer::import.bed(bed, which = gr)
         }, mc.cores = threads.region, mc.cleanup = T)
       cutsite.l <- bamFanc::bam.get.cut.site.ez(chunk.l = bed.l, is.open.bed = T,
-                                                overall.shift = 0, 
+                                                overall.shift = 0,
                                                 # left.shift = 0, right.shift = 0,
                                                 gr.region.name.map = region.gr,
                                                 name.col = name.col)
@@ -579,13 +579,13 @@ cut.site.pipe <- function(bam.files, sample.names = NULL,
   stat.ctrl <- lapply(cutsite.ctrl, function(x) {
     n.cut <- sapply(x, function(y) return(length(y$gr)))
     return(n.cut)
-  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>% 
+  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>%
     mutate(., region = rownames(.)) %>% `rownames<-`(NULL)
-  
+
   cutsite.join <- mapply(function(fg, ctrl) {
     union <- mapply(function(x, y) {
       common.qnames <- intersect(x$df$qname, y$df$qname)
-      x$df <- rbind(x$df %>% mutate(type = "fg"), y$df %>% mutate(type = "ctrl") %>% 
+      x$df <- rbind(x$df %>% mutate(type = "fg"), y$df %>% mutate(type = "ctrl") %>%
                     filter(!qname %in% common.qnames) %>% dplyr::select(chr, start, end, qname, type))
       x$gr <- NULL
       x$df.pe <- NULL
@@ -593,11 +593,11 @@ cut.site.pipe <- function(bam.files, sample.names = NULL,
     }, fg, ctrl, SIMPLIFY = F)
     return(union)
   }, cutsite, cutsite.ctrl, SIMPLIFY = F)
-  
+
   stat.join <- lapply(cutsite.join, function(x) {
     n.cut <- sapply(x, function(y) return(nrow(y$df)))
     return(n.cut)
-  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>% 
+  }) %>% Reduce(cbind, .) %>% as.data.frame() %>% `colnames<-`(names(cutsite)) %>%
     mutate(., region = rownames(.)) %>% `rownames<-`(NULL)
   res <- list(fg = list(cutsite = cutsite, stat = stat),
               ctrl = list(cutsite = cutsite.ctrl, stat = stat.ctrl),
